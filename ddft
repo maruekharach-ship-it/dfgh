@@ -1,0 +1,403 @@
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+-- 1. GUI BASE SETUP
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "GeminiHub_UI"
+ScreenGui.ResetOnSpawn = false
+
+local success, coregui = pcall(function() return game:GetService("CoreGui") end)
+if success and coregui then
+    ScreenGui.Parent = coregui
+else
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- ปุ่มเปิด/ปิด UI หน้าจอ (Toggle Icon)
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Name = "ToggleMenuBtn"
+OpenBtn.Size = UDim2.new(0, 50, 0, 50)
+OpenBtn.Position = UDim2.new(0, 15, 0.4, 0)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenBtn.Text = "GEMINI"
+OpenBtn.Font = Enum.Font.SourceSansBold
+OpenBtn.TextSize = 12
+OpenBtn.Active = true
+OpenBtn.Draggable = true
+OpenBtn.Parent = ScreenGui
+
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(0, 25)
+OpenCorner.Parent = OpenBtn
+
+-- Frame หลักฝั่งซ้าย (Main Controls)
+local LeftFrame = Instance.new("Frame")
+LeftFrame.Name = "LeftFrame"
+LeftFrame.Size = UDim2.new(0, 280, 0, 420)
+LeftFrame.Position = UDim2.new(0.2, 0, 0.2, 0)
+LeftFrame.BackgroundColor3 = Color3.fromRGB(22, 28, 38)
+LeftFrame.BorderSizePixel = 0
+LeftFrame.Active = true
+LeftFrame.Draggable = true
+LeftFrame.Parent = ScreenGui
+
+local LeftCorner = Instance.new("UICorner")
+LeftCorner.CornerRadius = UDim.new(0, 12)
+LeftCorner.Parent = LeftFrame
+
+-- Header ฝั่งซ้าย
+local TitleLeft = Instance.new("TextLabel")
+TitleLeft.Size = UDim2.new(1, -50, 0, 40)
+TitleLeft.Position = UDim2.new(0, 15, 0, 0)
+TitleLeft.BackgroundTransparency = 1
+TitleLeft.Text = "GEMINI HUB"
+TitleLeft.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLeft.TextXAlignment = Enum.TextXAlignment.Left
+TitleLeft.Font = Enum.Font.SourceSansBold
+TitleLeft.TextSize = 18
+TitleLeft.Parent = LeftFrame
+
+-- ปุ่มย่อเก็บ UI (-)
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 30, 0, 25)
+MinimizeBtn.Position = UDim2.new(1, -38, 0, 8)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(35, 45, 60)
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.Text = "-"
+MinimizeBtn.Font = Enum.Font.SourceSansBold
+MinimizeBtn.TextSize = 18
+MinimizeBtn.Parent = LeftFrame
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinimizeBtn
+
+-- Frame ฝั่งขวา (Player Inspector)
+local RightFrame = Instance.new("Frame")
+RightFrame.Name = "RightFrame"
+RightFrame.Size = UDim2.new(0, 280, 0, 420)
+RightFrame.Position = UDim2.new(0.5, 10, 0.2, 0)
+RightFrame.BackgroundColor3 = Color3.fromRGB(22, 28, 38)
+RightFrame.BorderSizePixel = 0
+RightFrame.Active = true
+RightFrame.Draggable = true
+RightFrame.Parent = ScreenGui
+
+local RightCorner = Instance.new("UICorner")
+RightCorner.CornerRadius = UDim.new(0, 12)
+RightCorner.Parent = RightFrame
+
+-- ฟังก์ชันสร้างปุ่มเมนู
+local function createButton(text, color, posy, parent)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 45)
+    btn.Position = UDim2.new(0.05, 0, posy, 0)
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = text
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 15
+    btn.Parent = parent
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = btn
+    return btn
+end
+
+-- 2. สร้างปุ่มเมนูฝั่งซ้าย (ตามรูปภาพ)
+local ServerHopBtn = createButton("⚡ ย้ายเซิร์ฟ (คนน้อย)", Color3.fromRGB(24, 119, 242), 0.11, LeftFrame)
+local EspToggleBtn = createButton("🏷️ ESP Name & Tool: ปิด (OFF)", Color3.fromRGB(220, 60, 60), 0.23, LeftFrame)
+local EspRefreshBtn = createButton("🔄 รีเฟรช ESP ทุกคน", Color3.fromRGB(130, 60, 190), 0.35, LeftFrame)
+local ClaymationBtn = createButton("🎨 Claymation (ภาพดินน้ำมัน): ปิด (OFF)", Color3.fromRGB(220, 60, 60), 0.47, LeftFrame)
+local AimbotBtn = createButton("🎯 Aimbot FOV Lock: เปิด (ON)", Color3.fromRGB(40, 180, 100), 0.59, LeftFrame)
+local InspectPlayerBtn = createButton("👁️ ส่องผู้เล่น & บล็อก", Color3.fromRGB(20, 160, 140), 0.71, LeftFrame)
+local RejoinBtn = createButton("🔄 รีจอยเซิร์ฟเดิม (Rejoin)", Color3.fromRGB(230, 120, 30), 0.83, LeftFrame)
+
+-- 3. UI ฝั่งขวา (ค้นหาผู้เล่น & รายละเอียด)
+local SearchBox = Instance.new("TextBox")
+SearchBox.Size = UDim2.new(0.62, 0, 0, 35)
+SearchBox.Position = UDim2.new(0.05, 0, 0.03, 0)
+SearchBox.BackgroundColor3 = Color3.fromRGB(15, 20, 28)
+SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+SearchBox.PlaceholderText = "🔍 ค้นหาผู้เล่น..."
+SearchBox.Font = Enum.Font.SourceSans
+SearchBox.TextSize = 14
+SearchBox.Parent = RightFrame
+
+local SearchCorner = Instance.new("UICorner")
+SearchCorner.CornerRadius = UDim.new(0, 8)
+SearchCorner.Parent = SearchBox
+
+local RefreshListBtn = Instance.new("TextButton")
+RefreshListBtn.Size = UDim2.new(0.26, 0, 0, 35)
+RefreshListBtn.Position = UDim2.new(0.69, 0, 0.03, 0)
+RefreshListBtn.BackgroundColor3 = Color3.fromRGB(24, 119, 242)
+RefreshListBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RefreshListBtn.Text = "🔄 รีเฟรช"
+RefreshListBtn.Font = Enum.Font.SourceSansBold
+RefreshListBtn.TextSize = 13
+RefreshListBtn.Parent = RightFrame
+
+local RefreshListCorner = Instance.new("UICorner")
+RefreshListCorner.CornerRadius = UDim.new(0, 8)
+RefreshListCorner.Parent = RefreshListBtn
+
+-- Scrolling Frame สำหรับรายชื่อ
+local PlayerListScroll = Instance.new("ScrollingFrame")
+PlayerListScroll.Size = UDim2.new(0.9, 0, 0, 180)
+PlayerListScroll.Position = UDim2.new(0.05, 0, 0.13, 0)
+PlayerListScroll.BackgroundColor3 = Color3.fromRGB(15, 20, 28)
+PlayerListScroll.BorderSizePixel = 0
+PlayerListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayerListScroll.Parent = RightFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = PlayerListScroll
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 5)
+
+-- Panel แสดงข้อมูลผู้เล่นที่เลือก
+local SelectedPlayerFrame = Instance.new("Frame")
+SelectedPlayerFrame.Size = UDim2.new(0.9, 0, 0, 180)
+SelectedPlayerFrame.Position = UDim2.new(0.05, 0, 0.58, 0)
+SelectedPlayerFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 28)
+SelectedPlayerFrame.Parent = RightFrame
+
+local SelectedCorner = Instance.new("UICorner")
+SelectedCorner.CornerRadius = UDim.new(0, 8)
+SelectedCorner.Parent = SelectedPlayerFrame
+
+local AvatarImg = Instance.new("ImageLabel")
+AvatarImg.Size = UDim2.new(0, 50, 0, 50)
+AvatarImg.Position = UDim2.new(0.05, 0, 0.08, 0)
+AvatarImg.BackgroundColor3 = Color3.fromRGB(30, 35, 45)
+AvatarImg.Parent = SelectedPlayerFrame
+
+local AvatarCorner = Instance.new("UICorner")
+AvatarCorner.CornerRadius = UDim.new(0, 25)
+AvatarCorner.Parent = AvatarImg
+
+local PlayerInfoLbl = Instance.new("TextLabel")
+PlayerInfoLbl.Size = UDim2.new(0.7, 0, 0, 50)
+PlayerInfoLbl.Position = UDim2.new(0.28, 0, 0.08, 0)
+PlayerInfoLbl.BackgroundTransparency = 1
+PlayerInfoLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayerInfoLbl.TextXAlignment = Enum.TextXAlignment.Left
+PlayerInfoLbl.Font = Enum.Font.SourceSans
+PlayerInfoLbl.TextSize = 13
+PlayerInfoLbl.Text = "เลือกผู้เล่นจากรายการด้านบน"
+PlayerInfoLbl.Parent = SelectedPlayerFrame
+
+local SpectateBtn = createButton("👁️ ส่องมุมมองของผู้เล่นคนนี้", Color3.fromRGB(40, 180, 100), 0.42, SelectedPlayerFrame)
+SpectateBtn.Size = UDim2.new(0.9, 0, 0, 35)
+
+local BlockBtn = createButton("🚫 บล็อกแอคเคาท์ (Roblox)", Color3.fromRGB(220, 60, 60), 0.68, SelectedPlayerFrame)
+BlockBtn.Size = UDim2.new(0.9, 0, 0, 35)
+
+
+-- ======================================================
+-- 4. LOGICS & FUNCTIONS
+-- ======================================================
+
+local selectedPlayerObj = nil
+local espEnabled = false
+local claymationEnabled = false
+local aimbotEnabled = true
+local isSpectating = false
+
+-- สลับ เปิด/ปิด UI
+local function toggleUI()
+    local visible = not LeftFrame.Visible
+    LeftFrame.Visible = visible
+    RightFrame.Visible = visible
+end
+
+OpenBtn.MouseButton1Click:Connect(toggleUI)
+MinimizeBtn.MouseButton1Click:Connect(toggleUI)
+
+-- 1) ย้ายเซิร์ฟเวอร์คนน้อย (Server Hop)
+ServerHopBtn.MouseButton1Click:Connect(function()
+    ServerHopBtn.Text = "⚡ กำลังค้นหาเซิร์ฟ..."
+    local api = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+    local success, result = pcall(function() return HttpService:JSONDecode(game:HttpGet(api)) end)
+    
+    if success and result and result.data then
+        for _, server in ipairs(result.data) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id)
+                return
+            end
+        end
+    end
+    ServerHopBtn.Text = "⚡ ย้ายเซิร์ฟ (คนน้อย)"
+end)
+
+-- 2) ESP Name & Tool
+local function applyESP(plr)
+    if plr == LocalPlayer or not plr.Character then return end
+    local head = plr.Character:FindFirstChild("Head")
+    if head and not head:FindFirstChild("GeminiESP") then
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "GeminiESP"
+        bb.Size = UDim2.new(0, 200, 0, 50)
+        bb.StudsOffset = Vector3.new(0, 3, 0)
+        bb.AlwaysOnTop = true
+        bb.Parent = head
+        
+        local txt = Instance.new("TextLabel")
+        txt.Size = UDim2.new(1, 0, 1, 0)
+        txt.BackgroundTransparency = 1
+        txt.TextColor3 = Color3.fromRGB(255, 50, 50)
+        txt.Font = Enum.Font.SourceSansBold
+        txt.TextSize = 14
+        txt.Parent = bb
+        
+        game:GetService("RunService").RenderStepped:Connect(function()
+            if espEnabled and plr.Character and plr.Character:FindFirstChild("Head") then
+                local tool = plr.Character:FindFirstChildOfClass("Tool")
+                local toolName = tool and tool.Name or "None"
+                txt.Text = plr.DisplayName .. " (@" .. plr.Name .. ")\n[Tool: " .. toolName .. "]"
+                bb.Enabled = true
+            else
+                bb.Enabled = false
+            end
+        end)
+    end
+end
+
+EspToggleBtn.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    if espEnabled then
+        EspToggleBtn.Text = "🏷️ ESP Name & Tool: เปิด (ON)"
+        EspToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 100)
+        for _, p in pairs(Players:GetPlayers()) do applyESP(p) end
+    else
+        EspToggleBtn.Text = "🏷️ ESP Name & Tool: ปิด (OFF)"
+        EspToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+    end
+end)
+
+EspRefreshBtn.MouseButton1Click:Connect(function()
+    for _, p in pairs(Players:GetPlayers()) do applyESP(p) end
+end)
+
+-- 3) Claymation (โหมดดินน้ำมัน)
+ClaymationBtn.MouseButton1Click:Connect(function()
+    claymationEnabled = not claymationEnabled
+    if claymationEnabled then
+        ClaymationBtn.Text = "🎨 Claymation (ภาพดินน้ำมัน): เปิด (ON)"
+        ClaymationBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 100)
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+            end
+        end
+    else
+        ClaymationBtn.Text = "🎨 Claymation (ภาพดินน้ำมัน): ปิด (OFF)"
+        ClaymationBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+    end
+end)
+
+-- 4) Aimbot FOV Lock
+local fovCircle = Drawing and Drawing.new("Circle") or nil
+if fovCircle then
+    fovCircle.Radius = 120
+    fovCircle.Color = Color3.fromRGB(0, 255, 150)
+    fovCircle.Thickness = 1.5
+    fovCircle.Filled = false
+    fovCircle.Visible = true
+end
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    if fovCircle then
+        fovCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
+        fovCircle.Visible = aimbotEnabled
+    end
+end)
+
+AimbotBtn.MouseButton1Click:Connect(function()
+    aimbotEnabled = not aimbotEnabled
+    if aimbotEnabled then
+        AimbotBtn.Text = "🎯 Aimbot FOV Lock: เปิด (ON)"
+        AimbotBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 100)
+    else
+        AimbotBtn.Text = "🎯 Aimbot FOV Lock: ปิด (OFF)"
+        AimbotBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+    end
+end)
+
+-- 5) ส่องผู้เล่น & บล็อก Toggle
+InspectPlayerBtn.MouseButton1Click:Connect(function()
+    RightFrame.Visible = not RightFrame.Visible
+end)
+
+-- 6) Rejoin
+RejoinBtn.MouseButton1Click:Connect(function()
+    TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+end)
+
+-- 7) อัปเดตรายชื่อผู้เล่นในเซิร์ฟเวอร์
+local function updatePlayerList()
+    for _, child in pairs(PlayerListScroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    
+    local count = 0
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            count = count + 1
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, 0, 0, 35)
+            btn.BackgroundColor3 = Color3.fromRGB(25, 32, 45)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.Text = plr.DisplayName .. " (@" .. plr.Name .. ")"
+            btn.Font = Enum.Font.SourceSans
+            btn.TextSize = 13
+            btn.Parent = PlayerListScroll
+            
+            local c = Instance.new("UICorner")
+            c.CornerRadius = UDim.new(0, 6)
+            c.Parent = btn
+            
+            btn.MouseButton1Click:Connect(function()
+                selectedPlayerObj = plr
+                PlayerInfoLbl.Text = plr.DisplayName .. " (@" .. plr.Name .. ")\n❤️ HP: 100/100\n🆔 ID: " .. plr.UserId
+                AvatarImg.Image = Players:GetUserThumbnailAsync(plr.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+            end)
+        end
+    end
+    PlayerListScroll.CanvasSize = UDim2.new(0, 0, 0, count * 40)
+end
+
+RefreshListBtn.MouseButton1Click:Connect(updatePlayerList)
+updatePlayerList()
+
+-- 8) ส่องมุมมองผู้เล่น (Spectate)
+SpectateBtn.MouseButton1Click:Connect(function()
+    if selectedPlayerObj and selectedPlayerObj.Character then
+        if isSpectating then
+            Camera.CameraSubject = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            SpectateBtn.Text = "👁️ ส่องมุมมองของผู้เล่นคนนี้"
+            SpectateBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 100)
+            isSpectating = false
+        else
+            Camera.CameraSubject = selectedPlayerObj.Character:FindFirstChildOfClass("Humanoid")
+            SpectateBtn.Text = "❌ ยกเลิกการส่อง"
+            SpectateBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+            isSpectating = true
+        end
+    end
+end)
+
+-- 9) บล็อกผู้เล่น
+BlockBtn.MouseButton1Click:Connect(function()
+    if selectedPlayerObj then
+        StarterGui:SetCore("PromptBlockPlayer", selectedPlayerObj)
+    end
+end)
